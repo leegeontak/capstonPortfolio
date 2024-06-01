@@ -11,6 +11,7 @@ const iconv = require("iconv-lite");
 app.use(express.json());
 app.use(cors());
 app.use(express.static("public"));
+const { v4: uuidv4 } = require("uuid");
 const PORT = process.env.PORT || 5000;
 
 app.use(bodyParser.json());
@@ -102,7 +103,7 @@ const storage = multer.diskStorage({
         // const originalname = Buffer.from(file.originalname, "latin1").toString(
         //     "utf8"
         // );
-        cb(null, "image" + Date.now() + ".jpg"); // 시간과 원본 파일명을 조합하여 파일명을 유니크하게 설정
+        cb(null, "image" + uuidv4() + ".jpg"); // 시간과 원본 파일명을 조합하여 파일명을 유니크하게 설정
     },
 });
 
@@ -130,6 +131,7 @@ app.post("/upload", upload.array("images", 10), (req, res) => {
                 return item.filename;
             }
         });
+        // console.log(req.files.lastModified);
         console.log(fileImageSrc);
         // const fileImageSrc = fileInfos.map((item) => item.filename);
         const currentDateTime = req.body.currentDateTime;
@@ -186,6 +188,28 @@ app.post("/api/searchword", (req, res) => {
         }
     );
 });
+app.post("/api/getdetailreview", (req, res) => {
+    const query = req.body.query; // req.query.query 대신 req.body.query 사용
+    console.log(req.body);
+
+    if (!query) {
+        return res.status(400).json({ error: "Query parameter is required" });
+    }
+
+    connection.query(
+        "SELECT * FROM review WHERE reviewDate = ?",
+        [query],
+        (err, result) => {
+            if (err) {
+                console.error("Error fetching search results:", err);
+                return res.status(500).json({ error: "Internal Server Error" });
+            }
+            console.log(result);
+            res.json(result);
+        }
+    );
+});
+
 app.post("/api/getreview", (req, res) => {
     const { id, checked } = req.body;
     const query = "SELECT * FROM review WHERE id = ?";
