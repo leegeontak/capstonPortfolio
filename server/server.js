@@ -154,54 +154,73 @@ app.post("/upload", upload.array("images", 10), (req, res) => {
         });
     }
 });
-// Multer 설정
-// const storage = multer.diskStorage({
-//     destination: (req, file, cb) => {
-//         cb(null, "uploads/");
-//     },
-//     filename: (req, file, cb) => {
-//         cb(null, Date.now() + path.extname(file.originalname)); // 파일 이름을 현재 시간 + 원본 확장자로 설정
-//     },
-// });
-// const upload = multer({ storage: storage });
-
-// // 업로드된 파일들을 저장할 폴더를 생성
-// const fs = require("fs");
-// const dir = "./uploads";
-// if (!fs.existsSync(dir)) {
-//     fs.mkdirSync(dir);
-// }
-
-// 이미지 업로드 라우트
-// app.post("/api/insertimage", upload.single("image"), (req, res) => {
-//     try {
-//         res.send("파일 업로드 성공!");
-//     } catch (error) {
-//         console.error(error);
-//         res.send("파일 업로드 실패!");
-//     }
-// });
-// const storage = multer.diskStorage({
-//     destination: (req, file, cb) => {
-//         cb(null, "uploads/");
-//     },
-//     filename: (req, file, cb) => {
-//         cb(null, Date.now() + path.extname(file.originalname)); // 파일 이름을 현재 시간 + 원본 확장자로 설정
-//     },
-// });
-// const upload = multer({ storage: storage });
-// app.post("/api/insertimage", upload.array("images", 5), (req, res) => {
-//     console.log(req);
-//     try {
-//         res.send("파일 업로드 성공!");
-//     } catch (error) {
-//         console.error(error);
-//         res.send("파일 업로드 실패!");
-//     }
-// });
 app.post("/api/showdata", (req, res) => {
     const query = "SELECT * FROM review";
     connection.query(query, (err, results) => {
+        if (err) {
+            console.error("Error fetching data:", err);
+            res.status(500).json({ error: "Failed to fetch data" });
+            return;
+        }
+        res.send(results);
+    });
+});
+app.post("/api/searchword", (req, res) => {
+    const query = req.query.query;
+    console.log(req.query);
+
+    if (!query) {
+        return res.status(400).json({ error: "Query parameter is required" });
+    }
+
+    connection.query(
+        "SELECT * FROM review WHERE title LIKE ? OR content LIKE ? OR JSON_SEARCH(reviewObj, 'one', ?) IS NOT NULL",
+        [`%${query}%`, `%${query}%`, `%${query}%`],
+        (err, result) => {
+            if (err) {
+                console.error("Error fetching search results:", err);
+                return res.status(500).json({ error: "Internal Server Error" });
+            }
+
+            res.json(result);
+        }
+    );
+});
+app.post("/api/getreview", (req, res) => {
+    const { id, checked } = req.body;
+    const query = "SELECT * FROM review WHERE id = ?";
+    if (checked) {
+        connection.query(
+            "SELECT * FROM review WHERE id = ? ORDER BY CONVERT(reviewDate,UNSIGNED) DESC",
+            [id],
+            (err, results) => {
+                if (err) {
+                    console.error("Error fetching data:", err);
+                    res.status(500).json({ error: "Failed to fetch data" });
+                    return;
+                }
+                res.send(results);
+            }
+        );
+    } else {
+        connection.query(
+            "SELECT * FROM review WHERE id = ? ORDER BY CONVERT(reviewDate,UNSIGNED)",
+            [id],
+            (err, results) => {
+                if (err) {
+                    console.error("Error fetching data:", err);
+                    res.status(500).json({ error: "Failed to fetch data" });
+                    return;
+                }
+                res.send(results);
+            }
+        );
+    }
+});
+app.post("/api/deletereview", (req, res) => {
+    const { reviewDate } = req.body;
+    const query = "DELETE FROM review WHERE reviewDate = ?";
+    connection.query(query, [reviewDate], (err, results) => {
         if (err) {
             console.error("Error fetching data:", err);
             res.status(500).json({ error: "Failed to fetch data" });
